@@ -162,13 +162,17 @@ const MenuCliente = {
     const todasCat = this.menuData;
     const catActual = this.categoriaActual;
 
-    // Determinar qué platos mostrar
     let categoriasAMostrar = todasCat;
     if (catActual) {
       categoriasAMostrar = todasCat.filter(c => c.slug === catActual);
     }
 
-    // Tabs de categorías
+    // Favorites: pick 3 top dishes
+    const todosLosPlatos = [];
+    todasCat.forEach(c => c.platos.forEach(p => todosLosPlatos.push({...p, catSlug: c.slug})));
+    const favoritos = todosLosPlatos.filter(p => ['especialidades','entradas'].includes(p.catSlug)).slice(0, 3);
+
+    // Tabs
     const tabsHTML = `
       <div class="cat-tabs">
         <button class="cat-tab ${!catActual ? 'active' : ''}" data-cat="">Todo</button>
@@ -180,42 +184,36 @@ const MenuCliente = {
       </div>
     `;
 
-    // Grid de platos
-    const platosHTML = categoriasAMostrar.map(cat => `
-      <div class="mb-4">
-        <h2 style="font-size:18px; font-weight:700; margin-bottom:12px; color:var(--texto-secundario)">
-          ${cat.emoji} ${cat.nombre}
-        </h2>
-        <div class="dish-grid">
-          ${cat.platos.map(p => `
-            <div class="dish-card" data-id="${p.id}">
-              <div class="dish-card-img">
-                ${p.imagen ? `<img src="${p.imagen}" alt="${p.nombre}" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : '🍜'}
-              </div>
-              <div class="dish-card-body">
-                <div class="dish-card-name">${p.nombre}</div>
-                ${p.nombreZh ? `<div class="dish-card-name-zh">${p.nombreZh}</div>` : ''}
-                <div class="dish-card-footer">
-                  <span class="dish-card-price">${App.formatearPrecio(p.precio)}</span>
-                  <span class="dish-card-badges">
-                    ${p.picante ? '<span class="badge badge-spicy">🔥 Picante</span>' : ''}
-                    ${p.vegetariano ? '<span class="badge badge-veg">🥬 Veg</span>' : ''}
-                  </span>
-                </div>
-              </div>
-            </div>
-          `).join('')}
+    // Favorites section
+    const favHTML = !catActual && favoritos.length > 0 ? `
+      <div class="category-header">
+        <span class="category-header-name">⭐ Favoritos</span>
+        <span class="category-header-count">Los más pedidos</span>
+      </div>
+      <div class="dish-grid">${favoritos.map(p => this.tarjetaPlato(p)).join('')}</div>
+    ` : '';
+
+    // Category sections with banner headers
+    const seccionesHTML = categoriasAMostrar.map(cat => `
+      <div class="category-header">
+        <span class="category-header-emoji">${cat.emoji}</span>
+        <span class="category-header-name">${cat.nombre}</span>
+        <span class="category-header-count">${cat.platos.length} platos</span>
+      </div>
+      <div class="dish-grid">
+          ${cat.platos.map(p => this.tarjetaPlato(p)).join('')}
         </div>
       </div>
     `).join('');
 
-    main.innerHTML = tabsHTML + platosHTML;
+    main.innerHTML = tabsHTML + favHTML + seccionesHTML;
 
     // Vincular tabs
     main.querySelectorAll('.cat-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         this.categoriaActual = tab.dataset.cat || null;
         this.pintar();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
 
@@ -226,6 +224,30 @@ const MenuCliente = {
         this.abrirDetalle(id);
       });
     });
+  },
+
+  tarjetaPlato(p) {
+    return `
+      <div class="dish-card" data-id="${p.id}">
+        <div class="dish-card-img">
+          ${p.imagen
+            ? `<img src="${p.imagen}" alt="${p.nombre}" loading="lazy">`
+            : `<span style="font-size:64px">🍜</span>`
+          }
+        </div>
+        <div class="dish-card-body">
+          <div class="dish-card-name">${p.nombre}</div>
+          ${p.nombreZh ? `<div class="dish-card-name-zh">${p.nombreZh}</div>` : ''}
+          <div class="dish-card-footer">
+            <span class="dish-card-price">${App.formatearPrecio(p.precio)}</span>
+            <span class="dish-card-badges">
+              ${p.picante ? '<span class="badge badge-spicy">🔥</span>' : ''}
+              ${p.vegetariano ? '<span class="badge badge-veg">🥬</span>' : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   abrirDetalle(id) {
