@@ -1,0 +1,11 @@
+# Render Blueprint — Configuración de despliegue automático
+services:
+  - type: web
+    name: nueva-china
+    runtime: node
+    buildCommand: npm install && node seed.js
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+    plan: free
