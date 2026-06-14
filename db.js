@@ -60,9 +60,29 @@ function inicializarBD() {
       FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
       FOREIGN KEY (plato_id) REFERENCES platos(id)
     );
+
+    -- Usuarios del sistema (staff/delivery)
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      rol TEXT NOT NULL DEFAULT 'staff',
+      creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   console.log('✅ Base de datos inicializada correctamente');
 }
 
-module.exports = { db, inicializarBD };
+// Crear admin por defecto si no existe
+function crearAdminDefault() {
+  const crypto = require('crypto');
+  const existe = db.prepare('SELECT COUNT(*) as count FROM usuarios').get();
+  if (existe.count === 0) {
+    const hash = crypto.createHash('sha256').update('admin123').digest('hex');
+    db.prepare('INSERT INTO usuarios (username, password_hash, rol) VALUES (?, ?, ?)').run('admin', hash, 'staff');
+    console.log('🔑 Usuario admin creado: admin / admin123');
+  }
+}
+
+module.exports = { db, inicializarBD, crearAdminDefault };

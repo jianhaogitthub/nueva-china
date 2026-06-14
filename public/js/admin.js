@@ -173,7 +173,7 @@ const AdminMenu = {
 
         const resp = await fetch(url, {
           method: method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: App.authHeaders(),
           body: JSON.stringify(datos),
         });
 
@@ -193,7 +193,7 @@ const AdminMenu = {
   // Eliminar plato
   async eliminarPlato(id) {
     try {
-      const resp = await fetch(`/api/menu/${id}`, { method: 'DELETE' });
+      const resp = await fetch(`/api/menu/${id}`, { method: 'DELETE', headers: App.authHeadersNoContent() });
       if (resp.ok) {
         this.render();
       } else {
@@ -203,5 +203,49 @@ const AdminMenu = {
     } catch (err) {
       alert('Error de conexión al eliminar el plato');
     }
+  }
+};
+
+// ============ GESTIÓN DE USUARIOS ============
+const AdminUsuarios = {
+  async render() {
+    const container = document.getElementById('personalContent');
+    container.innerHTML = '<p style="padding:20px;text-align:center">Cargando usuarios...</p>';
+    try {
+      const resp = await fetch('/api/usuarios', { headers: App.authHeadersNoContent() });
+      if (!resp.ok) throw new Error('No autorizado');
+      const usuarios = await resp.json();
+      this.pintar(container, usuarios);
+    } catch (err) {
+      container.innerHTML = '<div class="empty-state"><span class="empty-state-emoji">😔</span><p class="empty-state-text">Error al cargar usuarios</p></div>';
+    }
+  },
+  pintar(container, usuarios) {
+    container.innerHTML = '<div class="section-header"><h2>👥 Usuarios (' + usuarios.length + ')</h2><button class="btn btn-primary btn-sm" id="btnAgregarUsuario">＋ Agregar Usuario</button></div>' +
+      '<table class="admin-menu-table"><thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>' +
+      usuarios.map(u => '<tr><td>' + u.id + '</td><td><strong>' + u.username + '</strong></td><td><span class="badge ' + (u.rol === 'staff' ? 'badge-spicy' : 'badge-confirmado') + '">' + u.rol + '</span></td><td>' + new Date(u.creado_en).toLocaleDateString('es-CL') + '</td><td>' + (u.username !== (App.usuario ? App.usuario.username : '') ? '<button class="btn btn-danger btn-sm" data-eliminar="' + u.id + '">🗑️</button>' : '<span style="font-size:12px;color:var(--texto-terciario)">Tú</span>') + '</td></tr>').join('') +
+      '</tbody></table>';
+    document.getElementById('btnAgregarUsuario').addEventListener('click', () => this.abrirFormulario());
+    container.querySelectorAll('[data-eliminar]').forEach(btn => { btn.addEventListener('click', () => { if (confirm('¿Eliminar este usuario?')) this.eliminar(btn.dataset.eliminar); }); });
+  },
+  abrirFormulario() {
+    App.abrirModal('Agregar Usuario', '<div class="checkout-form"><div class="form-group"><label>Nombre de usuario *</label><input type="text" id="formUsername" placeholder="Ej: mesero1" required></div><div class="form-group"><label>Contraseña *</label><input type="password" id="formPassword" placeholder="Mínimo 4 caracteres" required></div><button class="btn btn-primary btn-block" id="btnGuardarUsuario">➕ Crear Usuario</button></div>');
+    document.getElementById('btnGuardarUsuario').onclick = async () => {
+      const username = document.getElementById('formUsername').value.trim();
+      const password = document.getElementById('formPassword').value;
+      if (!username || !password || password.length < 4) { alert('Usuario y contraseña (mín 4 caracteres) requeridos'); return; }
+      try {
+        const resp = await fetch('/api/usuarios', { method: 'POST', headers: App.authHeaders(), body: JSON.stringify({ username, password, rol: 'staff' }) });
+        if (resp.ok) { App.cerrarModal(); this.render(); }
+        else { const e = await resp.json(); alert('Error: ' + e.error); }
+      } catch { alert('Error de conexión'); }
+    };
+  },
+  async eliminar(id) {
+    try {
+      const resp = await fetch('/api/usuarios/' + id, { method: 'DELETE', headers: App.authHeadersNoContent() });
+      if (resp.ok) this.render();
+      else { const e = await resp.json(); alert('Error: ' + e.error); }
+    } catch { alert('Error de conexión'); }
   }
 };

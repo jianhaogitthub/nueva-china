@@ -209,6 +209,71 @@ h1, h2, h3, h4, .font-brand {
   animation: popIn 0.3s var(--ease-out);
 }
 
+.logout-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--blanco);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all var(--duration-fast) var(--ease-out);
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.22); }
+
+/* ========================================
+   LOGIN PAGE
+   ======================================== */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 64px - 200px);
+  padding: 40px 16px;
+}
+.login-card {
+  background: var(--blanco);
+  border-radius: var(--radius-xl);
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+}
+.login-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-header h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+.login-header p {
+  font-size: 14px;
+  color: var(--texto-secundario);
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.login-error {
+  background: #FFF5F5;
+  color: var(--rojo);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #FECACA;
+}
+
 @keyframes popIn {
   0% { transform: scale(0); }
   60% { transform: scale(1.2); }

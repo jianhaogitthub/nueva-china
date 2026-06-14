@@ -198,7 +198,7 @@ const Carrito = {
       try {
         const resp = await fetch('/api/pedidos', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: App.authHeaders(),
           body: JSON.stringify(pedido),
         });
         const data = await resp.json();

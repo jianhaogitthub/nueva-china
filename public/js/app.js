@@ -1,41 +1,165 @@
-// app.js — Inicialización de la app, cambio de modos y navegación
+// app.js — Inicialización de la app, cambio de modos, autenticación
 
 const App = {
-  modoActual: null,   // 'cliente' | 'personal' | 'reparto' | null (landing)
+  modoActual: null,
+  token: null,
+  usuario: null, // { username, rol }
 
-  // Inicializar la aplicación
   init() {
+    this.token = sessionStorage.getItem('token');
+    this.usuario = JSON.parse(sessionStorage.getItem('usuario') || 'null');
     this.bindModoButtons();
     this.bindCartToggle();
+    this.actualizarTopbar();
+    if (this.token) this.verificarSesion().finally(() => this.irALanding());
+    else this.irALanding();
+  },
+
+  // ---- AUTENTICACIÓN ----
+
+  async verificarSesion() {
+    try {
+      const resp = await fetch('/api/session', { headers: this.authHeaders() });
+      if (resp.ok) {
+        const data = await resp.json();
+        this.usuario = data;
+        sessionStorage.setItem('usuario', JSON.stringify(data));
+        this.actualizarTopbar();
+      } else {
+        this.cerrarSesion();
+      }
+    } catch { /* offline — mantener sesión local */ }
+  },
+
+  async login(username, password) {
+    const resp = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Error al iniciar sesión');
+    this.token = data.token;
+    this.usuario = { username: data.username, rol: data.rol };
+    sessionStorage.setItem('token', data.token);
+    sessionStorage.setItem('usuario', JSON.stringify(this.usuario));
+    this.actualizarTopbar();
+    return data;
+  },
+
+  cerrarSesion() {
+    if (this.token) fetch('/api/logout', { method: 'POST', headers: this.authHeaders() }).catch(() => {});
+    this.token = null;
+    this.usuario = null;
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('usuario');
+    this.actualizarTopbar();
     this.irALanding();
   },
 
-  // Vincular botones de cambio de modo en la barra superior
+  authHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
+    return headers;
+  },
+
+  authHeadersNoContent() {
+    const headers = {};
+    if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
+    return headers;
+  },
+
+  mostrarLogin(modoDestino) {
+    const main = document.getElementById('mainContent');
+    main.innerHTML = `
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-header">
+            <span style="font-size:48px">🔐</span>
+            <h2>Iniciar Sesión</h2>
+            <p>Ingresa para acceder al modo ${modoDestino === 'personal' ? 'Personal' : 'Reparto'}</p>
+          </div>
+          <form id="loginForm" class="login-form">
+            <div class="form-group">
+              <label>Usuario</label>
+              <input type="text" id="loginUsername" placeholder="Usuario" required autofocus>
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="password" id="loginPassword" placeholder="Contraseña" required>
+            </div>
+            <p class="login-error hidden" id="loginError"></p>
+            <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
+          </form>
+          <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--texto-terciario)">
+            <a onclick="App.irALanding()" style="cursor:pointer;color:var(--rojo)">← Volver al inicio</a>
+          </p>
+        </div>
+      </div>
+    `;
+    main.querySelector('#loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      const btn = main.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Iniciando...';
+      try {
+        await this.login(username, password);
+        this.cambiarModo(modoDestino);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Iniciar Sesión';
+      }
+    });
+  },
+
+  // ---- NAVEGACIÓN ----
+
   bindModoButtons() {
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const modo = btn.dataset.mode;
-        this.cambiarModo(modo);
+        this.cambiarModo(btn.dataset.mode);
       });
     });
   },
 
-  // Cambiar entre modos
   cambiarModo(modo) {
+    // Verificar auth para modos protegidos
+    if ((modo === 'personal' || modo === 'reparto') && !this.token) {
+      this.mostrarLogin(modo);
+      return;
+    }
     this.modoActual = modo;
     this.actualizarTopbar();
-    this.ocultarLanding();
-
+    const main = document.getElementById('mainContent');
+    main.innerHTML = '';
     switch (modo) {
-      case 'cliente':
-        MenuCliente.render();
-        break;
-      case 'personal':
-        ModoPersonal.render();
-        break;
-      case 'reparto':
-        ModoReparto.render();
-        break;
+      case 'cliente': MenuCliente.render(); break;
+      case 'personal': ModoPersonal.render(); break;
+      case 'reparto': ModoReparto.render(); break;
+    }
+  },
+
+  actualizarTopbar() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === this.modoActual);
+    });
+    // Mostrar/ocultar botón logout
+    let logoutBtn = document.getElementById('logoutBtn');
+    if (this.usuario) {
+      if (!logoutBtn) {
+        logoutBtn = document.createElement('button');
+        logoutBtn.id = 'logoutBtn';
+        logoutBtn.className = 'logout-btn';
+        logoutBtn.title = `Sesión: ${this.usuario.username} — Cerrar sesión`;
+        logoutBtn.innerHTML = `👤 ${this.usuario.username} ✕`;
+        logoutBtn.addEventListener('click', () => this.cerrarSesion());
+        document.querySelector('.topbar-right').prepend(logoutBtn);
+      }
+    } else {
+      if (logoutBtn) logoutBtn.remove();
     }
   },
 
@@ -312,32 +436,19 @@ const ModoPersonal = {
 
     const html = `
       <div class="tabs">
-        <button class="tab-btn ${this.pestana === 'pedidos' ? 'active' : ''}" data-tab="pedidos">
-          📋 Pedidos
-        </button>
-        <button class="tab-btn ${this.pestana === 'menu' ? 'active' : ''}" data-tab="menu">
-          🍜 Gestionar Menú
-        </button>
+        <button class="tab-btn ${this.pestana === 'pedidos' ? 'active' : ''}" data-tab="pedidos">📋 Pedidos</button>
+        <button class="tab-btn ${this.pestana === 'menu' ? 'active' : ''}" data-tab="menu">🍜 Menú</button>
+        <button class="tab-btn ${this.pestana === 'usuarios' ? 'active' : ''}" data-tab="usuarios">👥 Usuarios</button>
       </div>
       <div id="personalContent"></div>
     `;
-
     main.innerHTML = html;
-
-    // Vincular tabs
     main.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.pestana = btn.dataset.tab;
-        this.render();
-      });
+      btn.addEventListener('click', () => { this.pestana = btn.dataset.tab; this.render(); });
     });
-
-    // Cargar contenido según pestaña
-    if (this.pestana === 'pedidos') {
-      ModuloPedidos.cargar('personal');
-    } else {
-      AdminMenu.render();
-    }
+    if (this.pestana === 'pedidos') ModuloPedidos.cargar('personal');
+    else if (this.pestana === 'usuarios') AdminUsuarios.render();
+    else AdminMenu.render();
   }
 };
 

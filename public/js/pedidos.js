@@ -14,7 +14,7 @@ const ModuloPedidos = {
         url += '?es_delivery=1';
       }
 
-      const resp = await fetch(url);
+      const resp = await fetch(url, { headers: App.authHeadersNoContent() });
       const pedidos = await resp.json();
 
       if (pedidos.length === 0) {
@@ -215,7 +215,7 @@ const ModuloPedidos = {
     try {
       const resp = await fetch(`/api/pedidos/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: App.authHeaders(),
         body: JSON.stringify({ estado: nuevoEstado }),
       });
 
