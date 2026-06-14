@@ -1,0 +1,6 @@
+node_modules/
+nueva-china.db
+nueva-china.db-shm
+nueva-china.db-wal
+*.db-journal
+.DS_Store
