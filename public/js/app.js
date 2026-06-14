@@ -142,24 +142,48 @@ const App = {
     }
   },
 
+  mostrarCambiarPassword() {
+    const html = `
+      <div class="checkout-form">
+        <div class="form-group"><label>Contraseña actual</label><input type="password" id="formPassActual" placeholder="••••" required></div>
+        <div class="form-group"><label>Nueva contraseña</label><input type="password" id="formPassNueva" placeholder="Mínimo 4 caracteres" required></div>
+        <button class="btn btn-primary btn-block" id="btnGuardarPassword">🔒 Cambiar Contraseña</button>
+      </div>
+    `;
+    App.abrirModal('Cambiar Contraseña', html);
+    document.getElementById('btnGuardarPassword').onclick = async () => {
+      const actual = document.getElementById('formPassActual').value;
+      const nueva = document.getElementById('formPassNueva').value;
+      if (!actual || !nueva || nueva.length < 4) { alert('Ambos campos requeridos. Nueva: mín 4 caracteres'); return; }
+      try {
+        const resp = await fetch('/api/usuarios/password', { method: 'PUT', headers: App.authHeaders(), body: JSON.stringify({ password_actual: actual, password_nueva: nueva }) });
+        const data = await resp.json();
+        if (resp.ok) { alert('✅ ' + data.mensaje); App.cerrarModal(); }
+        else alert('❌ ' + data.error);
+      } catch { alert('Error de conexión'); }
+    };
+  },
+
   actualizarTopbar() {
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === this.modoActual);
     });
-    // Mostrar/ocultar botón logout
-    let logoutBtn = document.getElementById('logoutBtn');
+    let userArea = document.getElementById('userArea');
+    if (!userArea) {
+      userArea = document.createElement('div');
+      userArea.id = 'userArea';
+      userArea.style.cssText = 'display:flex;align-items:center;gap:6px';
+      document.querySelector('.topbar-right').prepend(userArea);
+    }
     if (this.usuario) {
-      if (!logoutBtn) {
-        logoutBtn = document.createElement('button');
-        logoutBtn.id = 'logoutBtn';
-        logoutBtn.className = 'logout-btn';
-        logoutBtn.title = `Sesión: ${this.usuario.username} — Cerrar sesión`;
-        logoutBtn.innerHTML = `👤 ${this.usuario.username} ✕`;
-        logoutBtn.addEventListener('click', () => this.cerrarSesion());
-        document.querySelector('.topbar-right').prepend(logoutBtn);
-      }
+      userArea.innerHTML = `
+        <button class="logout-btn" id="btnCambiarPass" title="Cambiar contraseña" style="padding:6px 8px;font-size:14px">⚙️</button>
+        <button class="logout-btn" id="logoutBtn" title="Cerrar sesión">👤 ${this.usuario.username}</button>
+      `;
+      document.getElementById('logoutBtn').addEventListener('click', () => this.cerrarSesion());
+      document.getElementById('btnCambiarPass').addEventListener('click', () => this.mostrarCambiarPassword());
     } else {
-      if (logoutBtn) logoutBtn.remove();
+      userArea.innerHTML = '';
     }
   },
 

@@ -138,6 +138,31 @@ app.post('/api/usuarios', requiereStaff, (req, res) => {
   }
 });
 
+// PUT /api/usuarios/password — Cambiar contraseña propia
+app.put('/api/usuarios/password', requiereAuth, (req, res) => {
+  try {
+    const { password_actual, password_nueva } = req.body;
+    if (!password_actual || !password_nueva) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva requeridas' });
+    }
+    if (password_nueva.length < 4) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' });
+    }
+
+    const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(req.user.userId);
+    const hashActual = hashPassword(password_actual);
+    if (user.password_hash !== hashActual) {
+      return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    }
+
+    const hashNueva = hashPassword(password_nueva);
+    db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?').run(hashNueva, req.user.userId);
+    res.json({ mensaje: 'Contraseña actualizada exitosamente' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // DELETE /api/usuarios/:id — Eliminar usuario (solo staff)
 app.delete('/api/usuarios/:id', requiereStaff, (req, res) => {
   try {
